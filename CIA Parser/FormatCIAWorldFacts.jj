@@ -1,0 +1,94 @@
+/*
+
+# Extract data from the html file
+egrep '<div class="category_data">|"Notes and Definitions:' ../factbook/geos/us.html | \
+# Remove multiple spaces, tabs, and double quotes from the data
+tr -s ' \t"' '   ' | \
+# Remove non-printable characters, html formatting from the data; put double quotes around the "values"; put " := at the end of the "attributes"
+sed -e "s/[^ -~]//g" -e "s/:*<\/.*$//" -e 's/.*class= category_data >\(.*\)/"\1"/' -e 's/.*title= Notes and Definitions: .*> \(.*\)/~\1" := /' | \
+# Remove existing newlines and replace them with new newlines where ~ had been inserted in the previous line; remove double spaces again
+tr "\n" " " | tr "~" "\n" | tr -s " " " " | \
+# Put " " for empty "values"; change "" to " "; remove blank lines; trim spaces from the end on lines; remove " " from within the data
+sed -e 's/:= $/:= " "/' -e 's/""/" "/' -e "/^ *$/d" -e "s/ *$//" -e s'/" "\([ -~]\)/\1/g' | 
+# Pipe to the parser
+java -jar FormatCIAWorldFacts.jar " "
+
+SELECT distinct a.triple.GET_MODEL() as model_graph,
+      a.triple.GET_SUBJECT() as subject,
+      a.triple.GET_PROPERTY() as property,
+      a.triple.GET_OBJ_VALUE() as object
+      from CIA_CS370_COUNTRIES_DATA a order by model_graph, subject, property;
+
+SELECT * FROM MDSYS.SEM_MODEL$;
+
+EXECUTE SEM_APIS.DROP_RDF_MODEL('CIA_CS370_COUNTRIES');
+drop table CIA_CS370_COUNTRIES_DATA;
+drop sequence "CIA_CS370_COUNTRIES_GUID_SQNC";
+drop sequence "CIA_CS370_COUNTRIES_SQNC"; 
+
+conn = connectTo 'jdbc:oracle:thin:@129.152.144.84/PDB1.usuniversi01134.oraclecloud.internal' 'cs370_countries' 'orcl' 'rdf_mode' 'CIA';
+
+*/
+
+// for i in `ls ../factbook/geos/*.html`; do echo $i; egrep '<div class="category_data">|"Notes and Definitions:' $i | tr -s ' \t"' '   ' | sed -e "s/[^ -~]//g" -e "s/:*<\/.*$//" -e 's/.*class= category_data >\(.*\)/"\1"/' -e 's/.*title= Notes and Definitions: .*> \(.*\)/~\1" := /' | tr "\n" " " | tr "~" "\n" | tr -s " " " " | sed -e 's/:= $/:= " "/' -e 's/""/" "/' -e "/^ *$/d" -e "s/ *$//" -e s'/" "\([ -~]\)/\1/g' | java -jar FormatCIAWorldFacts.jar " " | wc ; done
+
+PARSER_BEGIN(FormatCIAWorldFacts)
+
+import java.io.*;
+import java.util.*;
+
+public class FormatCIAWorldFacts {
+    private static String conn, table, country_id, date;
+
+    public static void main(String args[]) throws ParseException {
+       if (args == null || args.length != 4) {
+          System.err.println("Usage: FormatCIAWorldFacts" + " conn table country_id date");
+          System.exit(1);       
+       }
+       conn = args[0];
+       table = args[1];
+       country_id = args[2];
+       date = args[3];
+       FormatCIAWorldFacts formatter = new FormatCIAWorldFacts(System.in);
+       System.out.println(conn);
+       System.out.println("SIM on conn \"\"\"INSERT ciacountry(country := \"" + country_id + "\", date_year := \"" + date +  "\");\"\"\" ");
+       formatter.output();
+    }
+}
+
+PARSER_END(FormatCIAWorldFacts)
+
+SKIP : {
+  "\n"
+| "\r"
+| "\n\r"
+| "\r\n"
+}
+
+TOKEN:
+{
+    < STRING:  ([" "-"!", "#"-"~"])+ >
+  | < QUOTE:   "\"">
+}
+
+TOKEN:
+{
+    <ERROR: ~[] >
+}
+
+void output() :
+{ Token a = null, v = null; int count = 0;
+}
+
+{ ( a = <STRING> { count++; }
+        <QUOTE> 
+        <STRING> 
+        <QUOTE> 
+    v = <STRING> {
+       System.out.println("SIM on conn \"\"\"INSERT ciaattr(id := \"" + country_id+"_"+date+"_"+count + "\", key := \"" + a.image + "\", value := \"" + v.image +  "\");\"\"\" ");
+       System.out.println("SIM on conn \"\"\"MODIFY LIMIT = ALL ciacountry(attr := ciaattr WITH (id = \"" + country_id+"_"+date+"_"+count + "\")) WHERE country = \"" + country_id + "\" AND date_year = \"" + date + "\";\"\"\" "); 
+    }
+        <QUOTE> 
+  )+
+  { System.out.println("Fine"); }
+}

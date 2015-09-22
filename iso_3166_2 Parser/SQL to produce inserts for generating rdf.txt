@@ -1,0 +1,87 @@
+-- Open the cs370 ISO Countries connection
+
+EXECUTE SEM_APIS.DROP_RDF_MODEL('ISOC_CS370_COUNTRIES');
+drop table ISOC_CS370_COUNTRIES_DATA;
+drop sequence "ISOC_CS370_COUNTRIES_GUID_SQNC";
+drop sequence "ISOC_CS370_COUNTRIES_SQNC";
+
+SELECT distinct a.triple.GET_MODEL() as model_graph,
+      a.triple.GET_SUBJECT() as subject,  
+      a.triple.GET_PROPERTY() as property,
+      a.triple.GET_OBJ_VALUE() as object
+      from ISOC_CS370_COUNTRIES_DATA a order by model_graph desc, subject, property;
+      
+-- The CAPITALIZED attributes below don't appear to be in the OMG standard.
+SELECT 'SIM on conn ''INSERT ISO_3166_2_COUNTRIES
+  (
+    hasEnglishShortName := "' || nvl(COMMON_NAME, '_') as hasEnglishShortName,
+    '", hasEnglishShortNameInCapitals := "' || upper(nvl(COMMON_NAME, '_')) as hasEnglishShortNameInCapitals,
+    '", hasEnglishFullName := "' || nvl(FORMAL_NAME, '_') as hasEnglishFullName,
+    '", TYPE := "' || nvl(TYPE, '_') as TYPE,
+    '", SUB_TYPE := "' || nvl(SUB_TYPE, '_') as SUB_TYPE,
+    '", SOVEREIGNTY := "' || nvl(SOVEREIGNTY, '_') as SOVEREIGNTY,
+    '", CAPITAL := "' || nvl(CAPITAL, '_') as CAPITAL,
+    '", ISO_4217_CURRENCY_CODE := "' || nvl(ISO_4217_CURRENCY_CODE, '_') as ISO_4217_CURRENCY_CODE,
+    '", ISO_4217_CURRENCY_NAME := "' || nvl(ISO_4217_CURRENCY_NAME, '_') as ISO_4217_CURRENCY_NAME,
+    '", ITU_T_TELEPHONE_CODE := "' || nvl(ITU_T_TELEPHONE_CODE, '_') as ITU_T_TELEPHONE_CODE,
+    '", ISO_3166_1_2_LETTER_CODE := "' || nvl(ISO_3166_1_2_LETTER_CODE, '_') as ISO_3166_1_2_LETTER_CODE,
+    '", hasNumericCountryCode := "' || nvl(ISO_3166_1_3_LETTER_CODE, '_') as ISO_3166_1_3_LETTER_CODE,
+    '", IANA_COUNTRY_CODE_TLD := "' || nvl(IANA_COUNTRY_CODE_TLD, '_') as IANA_COUNTRY_CODE_TLD,
+    '", SORT_ORDER := ' || nvl(SORT_ORDER, 0) as SORT_ORDER,
+    ', ISO_3166_1_NUMBER := ' ||  nvl(ISO_3166_1_NUMBER, 0)  || ');''!' as ISO_3166_1_NUMBER 
+FROM ISO_3166_2_COUNTRIES ;
+
+-- pwd
+-- /Users/pcannata/Mine/Tolbert/Country Database
+-- After running this, vi it into junk and do the following:
+--      remove all tab characters
+--      change ^"SIM to SIM
+--      change ^ SIM to SIM
+--      change all "" to "
+--      change all "_" to ""
+
+-- Then run cat junk | tr "\n" " " | tr "\!" "\n"
+-- and copy the results into SimCountryInserts.py using TextWrangler
+---Then change all ^ SIM to ^SIM
+-- Then run ../../MyReL/dist/bin/jython SimCountryInserts.py 
+
+-- Try this, it gives a count of 196
+
+select count(*) from (SELECT  hasenglishshortname, hasnumericcountrycode
+ from table(
+   sem_match('select * where {
+	GRAPH <iso_3166_2_countries_SCHEMA> { ?indiv rdf:type :iso_3166_2_countries }
+	?indiv :hasenglishshortname ?hasenglishshortname .
+	?indiv :hasnumericcountrycode ?hasnumericcountrycode .
+   }',
+	SEM_MODELS('ISOC_CS370_COUNTRIES'), null,
+	SEM_ALIASES( SEM_ALIAS('', '#')), null) ));
+	
+-- These names are too long
+--      iso_3166_1_2_letter_code,
+--      hasenglishshortnameincapitals,
+
+-- But, this works:
+
+SELECT DISTINCT  hasenglishshortname,  iso_3166_1_number, itu_t_telephone_code, 
+iso_4217_currency_name, sovereignty, sort_order, capital, iso_4217_currency_code, 
+sub_type,  hasnumericcountrycode, iana_country_code_tld, hasenglishfullname, type
+ from table(
+   sem_match('select * where {
+	GRAPH <iso_3166_2_countries_SCHEMA> { ?indiv rdf:type :iso_3166_2_countries }
+	?indiv :hasenglishshortname ?hasenglishshortname .
+	?indiv :iso_3166_1_number ?iso_3166_1_number .
+	?indiv :itu_t_telephone_code ?itu_t_telephone_code .
+	?indiv :iso_4217_currency_name ?iso_4217_currency_name .
+	?indiv :sovereignty ?sovereignty .
+	?indiv :sort_order ?sort_order .
+	?indiv :capital ?capital .
+	?indiv :iso_4217_currency_code ?iso_4217_currency_code .
+	?indiv :sub_type ?sub_type .
+	?indiv :hasnumericcountrycode ?hasnumericcountrycode .
+	?indiv :iana_country_code_tld ?iana_country_code_tld .
+	?indiv :hasenglishfullname ?hasenglishfullname .
+	?indiv :type ?type .
+   }',
+	SEM_MODELS('ISOC_CS370_COUNTRIES'), null,
+	SEM_ALIASES( SEM_ALIAS('', '#')), null) )
