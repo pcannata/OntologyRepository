@@ -11,7 +11,7 @@ tr "\n" " " | tr "~" "\n" | tr -s " " " " | \
 # Put " " for empty "values"; change "" to " "; remove blank lines; trim spaces from the end on lines; remove " " from within the data
 sed -e 's/:= $/:= " "/' -e 's/""/" "/' -e "/^ *$/d" -e "s/ *$//" -e s'/" "\([ -~]\)/\1/g' | 
 # Pipe to the parser
-java -jar FormatCIAWorldFacts.jar " "
+java -jar FormatCIAWorldFacts.jar "conn" "table" "country_id" "date"
 
 SELECT distinct a.triple.GET_MODEL() as model_graph,
       a.triple.GET_SUBJECT() as subject,
@@ -90,5 +90,4 @@ void output() :
     }
         <QUOTE> 
   )+
-  { System.out.println("Fine"); }
 }
